@@ -1,0 +1,14 @@
+bin/
+obj/
+publish/
+review/
+smoke/
+artifacts/
+dist/
+.vs/
+*.user
+*.suo
+*-result.txt
+tasks.json*
+*.tmp
+*.log
