@@ -86,7 +86,8 @@ final class TaskStore: ObservableObject {
         }
     }
     @discardableResult func put(_ task: Todo) -> Bool {
-        commit { state in
+        if state.tasks.first(where: { $0.id == task.id }) == task { return true }
+        return commit { state in
             if let index = state.tasks.firstIndex(where: { $0.id == task.id }) { state.tasks[index] = task }
             else { state.tasks.append(task) }
         }

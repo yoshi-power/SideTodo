@@ -184,6 +184,9 @@ struct WidgetView: View {
             .measureHeight { controller.resizeWidget(width: width, height: $0) }
             .onChange(of: width) { _ in controller.resizeWidget(width: width, height: controller.widget.frame.height) }
             .onChange(of: draft) { _ in expandForWriting() }
+            .onChange(of: draft) { controller.quickDraft = $0 }
+            .onChange(of: today) { controller.selectedToday = $0 }
+            .onAppear { draft = controller.quickDraft; today = controller.selectedToday }
             .onDisappear { hover?.cancel(); shrink?.cancel(); controller.typing = false }
     }
     func tab(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -262,10 +265,22 @@ struct DetailView: View {
                 controller.pinDetail(); saved?.cancel()
                 if !isNew { let work = DispatchWorkItem { _ = persist() }; saved = work; DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work) }
             }
-            .onAppear { controller.flushDetail = { isNew || persist() } }
+            .onAppear { controller.flushDetail = flush }
             .onDisappear { saved?.cancel() }
     }
     func touch(_ active: Bool) { if active { controller.pinDetail() } }
+    func flush() -> Bool {
+        saved?.cancel()
+        if !isNew { return persist() }
+        if task.title.isEmpty && task.notes.isEmpty { return true }
+        let alert = NSAlert(); alert.messageText = "작성 중인 일정을 저장할까요?"
+        alert.addButton(withTitle: "저장"); alert.addButton(withTitle: "취소"); alert.addButton(withTitle: "버리기")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return persist()
+        case .alertThirdButtonReturn: return true
+        default: return false
+        }
+    }
     func chip(_ text: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button { touch(true); action() } label: {
             Label(text, systemImage: icon).font(.system(size: 11, weight: .medium)).padding(.horizontal, 10).padding(.vertical, 7)

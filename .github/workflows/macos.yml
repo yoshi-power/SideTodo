@@ -20,6 +20,8 @@ jobs:
       - name: Build universal app and run data tests
         run: bash mac/build.sh
       - name: Exercise AppKit windows with isolated test data
+        env:
+          SIDETODO_SCREENSHOTS: ${{ github.workspace }}/dist/mac/screenshots
         run: |
           python3 - <<'PY'
           import subprocess
@@ -34,6 +36,11 @@ jobs:
             dist/mac/*.sha256
             dist/mac/*.md
           if-no-files-found: error
+      - name: Upload rendered UI for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-ui-review
+          path: dist/mac/screenshots/*.png
   intel-test:
     needs: build
     runs-on: macos-15-intel

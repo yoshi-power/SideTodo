@@ -17,6 +17,8 @@ final class DesktopController: NSObject, NSWindowDelegate {
     var status: NSStatusItem!
     var timer: Timer?
     var typing = false
+    var quickDraft = ""
+    var selectedToday = true
     var expanded = false
     var detailPinned = false
     var detailID: UUID?
@@ -227,7 +229,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
         detail?.orderOut(nil); detail?.contentView = nil; detail = nil; detailID = nil
         flushDetail = nil; detailPinned = false; detailLeave = nil; leaveTime = Date()
     }
-    func windowWillMove(_ notification: Notification) { if !positioning { pinDetail(); detailMoved = true } }
+    func windowWillMove(_ notification: Notification) { if !positioning && NSEvent.pressedMouseButtons != 0 { pinDetail(); detailMoved = true } }
     func showArchive() {
         if let archive { archive.makeKeyAndOrderFront(nil); return }
         let panel = Self.panel(); configure(panel)
@@ -308,6 +310,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard controller.expanded, controller.widget.isVisible, let detail = controller.detail, detail.isVisible,
                   detail.frame.height > 250, controller.widget.frame.width >= 250,
                   detail.collectionBehavior.contains(.fullScreenAuxiliary), NSApp.activationPolicy() == .accessory else { exit(1) }
+            self.capture(controller.widget, name: "widget")
+            self.capture(detail, name: "detail")
             controller.closeDetail(); controller.store.complete(task, done: true); controller.showArchive()
             guard controller.store.archived(newest: true).count == 1, controller.archive?.isVisible == true else { exit(1) }
             controller.store.complete(controller.store.state.tasks[0], done: false)
@@ -316,5 +320,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("PASS: accessory app, floating panels, detail layout, archive, restore, collapse")
             NSApp.terminate(nil)
         }
+    }
+    func capture(_ panel: NSPanel, name: String) {
+        guard let directory = ProcessInfo.processInfo.environment["SIDETODO_SCREENSHOTS"], let view = panel.contentView,
+              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: rep)
+        guard let data = rep.representation(using: .png, properties: [:]) else { return }
+        let url = URL(fileURLWithPath: directory)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        try? data.write(to: url.appendingPathComponent("\(name).png"))
     }
 }

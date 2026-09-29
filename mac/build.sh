@@ -12,7 +12,7 @@ cp Info.plist "$APP/Contents/Info.plist"
 swift tools/Icon.swift .build/SideTodo.iconset
 iconutil -c icns .build/SideTodo.iconset -o "$APP/Contents/Resources/SideTodo.icns"
 plutil -lint "$APP/Contents/Info.plist"
-lipo -verify_arch arm64 x86_64 "$APP/Contents/MacOS/SideTodo"
+lipo "$APP/Contents/MacOS/SideTodo" -verify_arch arm64 x86_64
 # Ad-hoc signing is necessary for the ARM binary. This is NOT Developer ID signing/notarization.
 codesign --force --sign - --timestamp=none "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
