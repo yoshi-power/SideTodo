@@ -1,4 +1,4 @@
-# SideTodo for macOS · Preview 2
+# SideTodo for macOS · Preview 3
 
 macOS 13 이상 / Apple Silicon + Intel Universal 앱입니다. Swift·SwiftUI·AppKit만 사용하며 외부 라이브러리가 없습니다.
 

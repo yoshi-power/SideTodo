@@ -46,6 +46,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
     let store: TaskStore
     let widget: FloatingPanel
     let marker: FloatingPanel
+    private var widgetHost: NSHostingView<WidgetView>?
     var detail: FloatingPanel?
     var archive: FloatingPanel?
     var status: NSStatusItem!
@@ -93,6 +94,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
                 .frame(width: 13, height: 42).padding(3))
         makeStatus()
         collapse(force: true)
+        hoverSuppressed = false
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(wake), name: NSWorkspace.didWakeNotification, object: nil)
         timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.tick() }
@@ -162,7 +164,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
     }
     @objc func about() {
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "SideTodo", .applicationVersion: "1.1.0 · Mac Preview 2", .credits: NSAttributedString(string: "작게 열고, 가볍게 기록하세요.\n데이터는 이 Mac에만 저장됩니다.\nhttps://github.com/yoshi-power/SideTodo")])
+        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "SideTodo", .applicationVersion: "1.1.0 · Mac Preview 3", .credits: NSAttributedString(string: "작게 열고, 가볍게 기록하세요.\n데이터는 이 Mac에만 저장됩니다.\nhttps://github.com/yoshi-power/SideTodo")])
     }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func wake() { screensChanged() }
@@ -198,7 +200,13 @@ final class DesktopController: NSObject, NSWindowDelegate {
         guard !expanded else { return }
         expanded = true; leaveTime = nil
         widget.acceptsKeyboard = false
-        if widget.contentView == nil { widget.contentView = NSHostingView(rootView: WidgetView(store: store, controller: self)) }
+        // NSPanel already owns an empty NSView. Non-nil contentView does not
+        // mean the task UI is mounted; track the actual hosting view instead.
+        if widgetHost == nil {
+            let host = NSHostingView(rootView: WidgetView(store: store, controller: self))
+            widgetHost = host
+            widget.contentView = host
+        }
         positionWidget(animated: false)
         marker.fade(visible: false); widget.fade(visible: true)
     }

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")"
-VERSION="1.1.0-mac-preview.2"
+VERSION="1.1.0-mac-preview.3"
 OUTPUT="$PWD/../dist/mac"
 APP="$OUTPUT/SideTodo.app"
 mkdir -p "$OUTPUT" "$APP/Contents/MacOS" "$APP/Contents/Resources" .build/universal

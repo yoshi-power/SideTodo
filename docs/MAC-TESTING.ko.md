@@ -2,7 +2,7 @@
 
 ## 설치와 첫 실행
 
-1. `SideTodo-1.1.0-mac-preview.2-universal.zip`을 압축 해제합니다.
+1. `SideTodo-1.1.0-mac-preview.3-universal.zip`을 압축 해제합니다.
 2. `SideTodo.app`을 응용 프로그램 폴더로 옮기고 실행합니다.
 3. 화면 왼쪽 위에서 조금 아래에 있는 작은 바 근처로 마우스를 옮깁니다. 메뉴 막대의 체크 아이콘에서도 열 수 있습니다.
 

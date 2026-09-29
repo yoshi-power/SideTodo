@@ -4,9 +4,9 @@
 
 ## macOS 프리뷰
 
-**[Mac 테스트 버전 다운로드](https://github.com/yoshi-power/SideTodo/releases/tag/v1.1.0-mac-preview.2)** · **[친구 테스트 안내](docs/MAC-TESTING.ko.md)**
+**[Mac 테스트 버전 다운로드](https://github.com/yoshi-power/SideTodo/releases/tag/v1.1.0-mac-preview.3)** · **[친구 테스트 안내](docs/MAC-TESTING.ko.md)**
 
-Preview 2는 Mac 메모 입력과 표시 바를 개선하고 두 운영체제의 창 전환 애니메이션을 다듬었습니다. 같은 릴리스에 Windows 1.0.1 수정 ZIP도 있습니다. Mac 업데이트는 기존 앱을 종료하고 `.app`만 교체하세요. 기존 일정은 유지되며 첫 실행에 별도 원본 백업을 만듭니다.
+Preview 3는 Preview 2에서 할 일 목록이 나타나지 않는 시작 오류를 수정했습니다. Mac 업데이트는 기존 앱을 종료하고 `.app`만 교체하세요. 기존 일정과 백업은 유지됩니다. Windows 1.0.1 수정 ZIP은 [Preview 2 릴리스](https://github.com/yoshi-power/SideTodo/releases/tag/v1.1.0-mac-preview.2)에 있습니다.
 
 macOS 13 이상 / Apple Silicon·Intel Universal 앱입니다. 메뉴 막대와 네이티브 보조 창에 맞춰 구현했으며 Dock·⌘Tab에 표시하지 않습니다. Mac 버전은 친구 테스트용 프리뷰로, Developer ID 서명·Apple 공증이 없습니다. 첫 실행과 수동 검증 항목은 위 안내를 확인하세요. 소스와 빌드 방법은 [mac/README.md](mac/README.md)에 있습니다.
 
