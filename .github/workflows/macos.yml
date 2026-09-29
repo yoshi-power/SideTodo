@@ -1,0 +1,52 @@
+name: macOS Preview
+on:
+  push:
+    paths:
+      - 'mac/**'
+      - '.github/workflows/macos.yml'
+      - 'docs/MAC-TESTING.ko.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal app and run data tests
+        run: bash mac/build.sh
+      - name: Exercise AppKit windows with isolated test data
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          subprocess.run(['dist/mac/SideTodo.app/Contents/MacOS/SideTodo', '--ui-smoke'], check=True, timeout=90)
+          PY
+      - name: Upload friend-testing package
+        uses: actions/upload-artifact@v4
+        with:
+          name: SideTodo-mac-universal-preview
+          path: |
+            dist/mac/*.zip
+            dist/mac/*.sha256
+            dist/mac/*.md
+          if-no-files-found: error
+  intel-test:
+    needs: build
+    runs-on: macos-15-intel
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: SideTodo-mac-universal-preview
+          path: package
+      - name: Verify package and run Intel data tests
+        run: |
+          cd package
+          shasum -a 256 -c SideTodo-*.sha256
+          ditto -x -k SideTodo-*-universal.zip extracted
+          codesign --verify --deep --strict extracted/SideTodo.app
+          extracted/SideTodo.app/Contents/MacOS/SideTodo --self-test

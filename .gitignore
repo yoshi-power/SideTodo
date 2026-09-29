@@ -12,3 +12,7 @@ dist/
 tasks.json*
 *.tmp
 *.log
+# Swift / macOS build products
+mac/.build/
+mac/.swiftpm/
+.DS_Store
