@@ -14,6 +14,8 @@ enum SelfTests {
         try check(task.isToday, "Today grouping")
         try check(store.put(task), "Initial save")
         store.complete(task, done: true)
+        var edited = task; edited.notes = task.notes
+        try check(store.saveDetails(edited) && store.state.tasks[0].done, "Hover editor cannot undo a simultaneous completion")
         let reload = try TaskStore(url: url)
         try check(reload.state.tasks[0].notes == task.notes, "Unicode round trip")
         try check(reload.state.tasks[0].completedAt != nil, "Completion timestamp")

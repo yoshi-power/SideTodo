@@ -22,6 +22,9 @@ if [[ "${1:-}" == "--ui-smoke" ]]; then
 fi
 cp ../docs/MAC-TESTING.ko.md "$OUTPUT/START-HERE.ko.md"
 cp README.md "$OUTPUT/BUILD-INFO.md"
-ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUTPUT/SideTodo-$VERSION-universal.zip"
+mkdir -p .build/friend-package
+ditto "$APP" .build/friend-package/SideTodo.app
+cp "$OUTPUT/START-HERE.ko.md" "$OUTPUT/BUILD-INFO.md" .build/friend-package/
+ditto -c -k --sequesterRsrc .build/friend-package "$OUTPUT/SideTodo-$VERSION-universal.zip"
 (cd "$OUTPUT" && shasum -a 256 "SideTodo-$VERSION-universal.zip" > "SideTodo-$VERSION-universal.sha256")
 echo "Ready: $OUTPUT"

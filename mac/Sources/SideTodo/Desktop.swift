@@ -17,7 +17,9 @@ final class DesktopController: NSObject, NSWindowDelegate {
     var status: NSStatusItem!
     var timer: Timer?
     var typing = false
-    var quickDraft = ""
+    var quickDraft = UserDefaults.standard.string(forKey: "quickDraft") ?? "" {
+        didSet { UserDefaults.standard.set(quickDraft, forKey: "quickDraft") }
+    }
     var selectedToday = true
     var expanded = false
     var detailPinned = false
@@ -200,13 +202,14 @@ final class DesktopController: NSObject, NSWindowDelegate {
     func openDetail(_ task: Todo?, hover: Bool, today: Bool = true) {
         if let detail, detail.isVisible {
             if detailID == task?.id && task != nil { if !hover { pinDetail(); detail.makeKeyAndOrderFront(nil) }; return }
-            if detailPinned { if !hover { detail.makeKeyAndOrderFront(nil) }; return }
+            if detailPinned && hover { return }
             closeDetail()
+            guard self.detail == nil else { return }
         }
         var value = task ?? Todo(); if task == nil && today { value.due = Dates.day(Date()) }
         let panel = Self.panel(); detail = panel; detailID = value.id; detailPinned = !hover; detailMoved = false
         panel.delegate = self; configure(panel)
-        panel.escape = { [weak self] in if self?.detailPinned == false { self?.closeDetail() } }
+        panel.escape = { [weak self] in self?.closeDetail() }
         let size = NSSize(width: min(420, available.width - 32), height: 330)
         let origin: NSPoint
         if hover {
@@ -274,6 +277,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Standard Edit menu is needed for Command-C/V/Z in an accessory app.
         let main = NSMenu(); let app = NSMenuItem(); let appMenu = NSMenu()
         appMenu.addItem(withTitle: "SideTodo 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let close = NSMenuItem(title: "창 닫기", action: #selector(closeFocused), keyEquivalent: "w")
+        close.target = self; appMenu.addItem(close)
         app.submenu = appMenu; main.addItem(app)
         let edit = NSMenuItem(); edit.title = "편집"; let editMenu = NSMenu(title: "편집")
         for (title, action, key) in [("실행 취소", "undo:", "z"), ("오려두기", "cut:", "x"), ("복사", "copy:", "c"), ("붙여넣기", "paste:", "v"), ("모두 선택", "selectAll:", "a")] {
@@ -297,6 +302,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let flush = controller?.flushDetail, !flush() { return .terminateCancel }
         return .terminateNow
     }
+    @objc func closeFocused() {
+        guard let controller else { return }
+        if controller.detail?.isKeyWindow == true { controller.closeDetail() }
+        else if controller.archive?.isKeyWindow == true { controller.archive?.orderOut(nil) }
+        else { controller.collapse(force: true) }
+    }
     func applicationWillTerminate(_ notification: Notification) {
         controller?.timer?.invalidate()
         if let smokeDirectory { try? FileManager.default.removeItem(at: smokeDirectory) }
@@ -305,7 +316,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let controller else { exit(1) }
         var task = Todo(); task.title = "한글 입력 · 길어지는 제목과 줄바꿈 확인"; task.notes = String(repeating: "긴 메모도 줄바꿈하며 읽습니다.\n", count: 20); task.due = Dates.day(Date())
         guard controller.store.put(task) else { exit(1) }
-        controller.expand(); controller.openDetail(task, hover: false)
+        controller.expand(); controller.openDetail(task, hover: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            guard controller.detailPinned == false, controller.detail?.isKeyWindow == false,
+                  controller.widget.isKeyWindow == false else { fputs("Hover stole focus or pinned itself\n", stderr); exit(1) }
+            controller.openDetail(task, hover: false)
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             guard controller.expanded, controller.widget.isVisible, let detail = controller.detail, detail.isVisible,
                   detail.frame.height > 250, controller.widget.frame.width >= 250,

@@ -56,7 +56,10 @@ final class EntryTextView: NSTextView {
         if event.keyCode == 36 && !event.modifierFlags.contains(.shift) && !hasMarkedText(), let submit {
             submit(); return
         }
-        if event.keyCode == 53 && !hasMarkedText() { escape?(); return }
+        if event.keyCode == 53 && !hasMarkedText() {
+            if let escape { escape() } else { window?.cancelOperation(self) }
+            return
+        }
         if event.keyCode == 48 && !hasMarkedText() { window?.selectNextKeyView(self); return }
         super.keyDown(with: event)
     }
@@ -183,7 +186,7 @@ struct WidgetView: View {
         }.frame(width: width).fixedSize(horizontal: false, vertical: true)
             .measureHeight { controller.resizeWidget(width: width, height: $0) }
             .onChange(of: width) { _ in controller.resizeWidget(width: width, height: controller.widget.frame.height) }
-            .onChange(of: draft) { _ in expandForWriting() }
+            .onChange(of: draft) { value in if !value.isEmpty { expandForWriting() } }
             .onChange(of: draft) { controller.quickDraft = $0 }
             .onChange(of: today) { controller.selectedToday = $0 }
             .onAppear { draft = controller.quickDraft; today = controller.selectedToday }
@@ -291,7 +294,7 @@ struct DetailView: View {
     func persist() -> Bool {
         var value = task; value.title = value.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.title.isEmpty else { store.failure = "제목을 입력해 주세요."; return false }
-        return store.put(value)
+        return store.saveDetails(value)
     }
     func close(saveNew: Bool = false) {
         saved?.cancel()

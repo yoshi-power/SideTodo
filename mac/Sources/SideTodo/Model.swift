@@ -96,6 +96,13 @@ final class TaskStore: ObservableObject {
         var task = task; task.done = done; task.completedAt = done ? Dates.stamp() : nil
         put(task)
     }
+    @discardableResult func saveDetails(_ draft: Todo) -> Bool {
+        var draft = draft
+        if let current = state.tasks.first(where: { $0.id == draft.id }) {
+            draft.done = current.done; draft.completedAt = current.completedAt
+        }
+        return put(draft)
+    }
     func archived(newest: Bool) -> [Todo] {
         state.tasks.filter(\.done).sorted {
             let a = Dates.instant($0.completedAt), b = Dates.instant($1.completedAt)
