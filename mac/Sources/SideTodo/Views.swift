@@ -53,6 +53,7 @@ final class EntryTextView: NSTextView {
     var escape: (() -> Void)?
     var tabForward: (() -> Void)?
     override func keyDown(with event: NSEvent) {
+        (delegate as? Editor.Coordinator)?.focused(true)
         if event.keyCode == 36 && !event.modifierFlags.contains(.shift) && !hasMarkedText(), let submit {
             submit(); return
         }
@@ -65,8 +66,12 @@ final class EntryTextView: NSTextView {
     }
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
-        if result { (delegate as? Editor.Coordinator)?.focused(true) }
+        if result && window?.isKeyWindow == true { (delegate as? Editor.Coordinator)?.focused(true) }
         return result
+    }
+    override func mouseDown(with event: NSEvent) {
+        (delegate as? Editor.Coordinator)?.focused(true)
+        super.mouseDown(with: event)
     }
     override func resignFirstResponder() -> Bool {
         let result = super.resignFirstResponder()

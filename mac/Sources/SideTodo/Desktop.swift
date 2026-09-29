@@ -319,7 +319,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.expand(); controller.openDetail(task, hover: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             guard controller.detailPinned == false, controller.detail?.isKeyWindow == false,
-                  controller.widget.isKeyWindow == false else { fputs("Hover stole focus or pinned itself\n", stderr); exit(1) }
+                  controller.widget.isKeyWindow == false else {
+                fputs("Hover focus check: pinned=\(controller.detailPinned), detailKey=\(controller.detail?.isKeyWindow ?? false), widgetKey=\(controller.widget.isKeyWindow)\n", stderr); exit(1)
+            }
             controller.openDetail(task, hover: false)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {

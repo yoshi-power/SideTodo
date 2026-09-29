@@ -2,6 +2,14 @@
 
 # SideTodo
 
+## macOS 프리뷰
+
+**[Mac 테스트 버전 다운로드](https://github.com/yoshi-power/SideTodo/releases/tag/v1.1.0-mac-preview.1)** · **[친구 테스트 안내](docs/MAC-TESTING.ko.md)**
+
+macOS 13 이상 / Apple Silicon·Intel Universal 앱입니다. 메뉴 막대와 네이티브 보조 창에 맞춰 구현했으며 Dock·⌘Tab에 표시하지 않습니다. Mac 버전은 친구 테스트용 프리뷰로, Developer ID 서명·Apple 공증이 없습니다. 첫 실행과 수동 검증 항목은 위 안내를 확인하세요. 소스와 빌드 방법은 [mac/README.md](mac/README.md)에 있습니다.
+
+아래는 기존 Windows 정식 버전 안내입니다.
+
 **필요할 때만 펼쳐지는, 화면 가장자리의 작은 할 일 위젯.**
 
 A quiet, local-first Windows to-do widget. Hover to check your day, type inline, and keep your completion history.
