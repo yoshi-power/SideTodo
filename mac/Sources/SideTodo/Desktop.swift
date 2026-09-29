@@ -8,6 +8,7 @@ final class FloatingPanel: NSPanel {
     func fade(visible: Bool, completion: (() -> Void)? = nil) {
         fadeTimer?.invalidate(); fadeTimer = nil
         ignoresMouseEvents = !visible
+        if !visible { if isKeyWindow { resignKey() }; acceptsKeyboard = false }
         if visible && !isVisible { alphaValue = 0; orderFrontRegardless() }
         let from = alphaValue, to: CGFloat = visible ? 1 : 0
         let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : (visible ? 0.24 : 0.30)
@@ -161,7 +162,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
     }
     @objc func about() {
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "SideTodo", .applicationVersion: "1.1.0 · Mac Preview 1", .credits: NSAttributedString(string: "작게 열고, 가볍게 기록하세요.\n데이터는 이 Mac에만 저장됩니다.\nhttps://github.com/yoshi-power/SideTodo")])
+        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "SideTodo", .applicationVersion: "1.1.0 · Mac Preview 2", .credits: NSAttributedString(string: "작게 열고, 가볍게 기록하세요.\n데이터는 이 Mac에만 저장됩니다.\nhttps://github.com/yoshi-power/SideTodo")])
     }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func wake() { screensChanged() }

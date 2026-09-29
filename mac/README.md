@@ -1,4 +1,4 @@
-# SideTodo for macOS · Preview 1
+# SideTodo for macOS · Preview 2
 
 macOS 13 이상 / Apple Silicon + Intel Universal 앱입니다. Swift·SwiftUI·AppKit만 사용하며 외부 라이브러리가 없습니다.
 
@@ -34,6 +34,7 @@ GitHub Actions의 `macOS Preview` 워크플로에서도 빌드합니다.
 ## 데이터
 
 `~/Library/Application Support/SideTodo/tasks.json` 및 `tasks.json.bak`.
+Preview 2 첫 실행은 기존 파일을 `tasks.before-preview2.json`으로 별도 보존합니다. 앱 교체 시 저장 위치·형식과 앱 식별자는 유지됩니다.
 Windows와 같은 `Tasks`, `Id`, `Title`, `Notes`, `Due`, `Done`, `CompletedAt`, `Created` JSON 필드를 사용합니다.
 메뉴 막대의 가져오기는 기존 ID를 건너뛰고 새 일정만 합칩니다. 동기화 기능은 아닙니다.
 완료 JSON 내보내기는 같은 포맷으로 완료 항목만 담습니다.
