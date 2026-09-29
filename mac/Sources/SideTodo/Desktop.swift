@@ -3,10 +3,18 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 final class FloatingPanel: NSPanel {
-    override var canBecomeKey: Bool { true }
+    var acceptsKeyboard = false
+    override var canBecomeKey: Bool { acceptsKeyboard }
     override var canBecomeMain: Bool { false }
     var escape: (() -> Void)?
     override func cancelOperation(_ sender: Any?) { escape?() }
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown || event.type == .rightMouseDown {
+            acceptsKeyboard = true; makeKey()
+        }
+        super.sendEvent(event)
+    }
+    func showForEditing() { acceptsKeyboard = true; makeKeyAndOrderFront(nil) }
 }
 
 final class DesktopController: NSObject, NSWindowDelegate {
@@ -106,7 +114,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
         _ = item("SideTodo 종료", #selector(quit), key: "q")
         status.menu = menu
     }
-    @objc func openFromMenu() { expand(); widget.makeKeyAndOrderFront(nil) }
+    @objc func openFromMenu() { expand(); widget.showForEditing() }
     @objc func newFromMenu() { openDetail(nil, hover: false) }
     @objc func archiveFromMenu() { showArchive() }
     @objc func selectDisplay(_ sender: NSMenuItem) {
@@ -157,6 +165,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
     func expand() {
         guard !expanded else { return }
         expanded = true; leaveTime = nil
+        widget.acceptsKeyboard = false
         widget.contentView = NSHostingView(rootView: WidgetView(store: store, controller: self))
         widget.hasShadow = true; widget.alphaValue = 1
         positionWidget(animated: true)
@@ -166,6 +175,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
         if !force && (detailPinned || (typing && widget.isKeyWindow)) { return }
         expanded = false; typing = false; leaveTime = nil; hoverSuppressed = true
         if widget.isKeyWindow { widget.resignKey() }
+        widget.acceptsKeyboard = false
         widget.contentView = NSHostingView(rootView: Capsule().fill(Color.white.opacity(0.35)).frame(width: 4, height: 28).padding(2))
         widget.hasShadow = false
         positionWidget(animated: true)
@@ -201,7 +211,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
     }
     func openDetail(_ task: Todo?, hover: Bool, today: Bool = true) {
         if let detail, detail.isVisible {
-            if detailID == task?.id && task != nil { if !hover { pinDetail(); detail.makeKeyAndOrderFront(nil) }; return }
+            if detailID == task?.id && task != nil { if !hover { pinDetail(); detail.showForEditing() }; return }
             if detailPinned && hover { return }
             closeDetail()
             guard self.detail == nil else { return }
@@ -218,7 +228,7 @@ final class DesktopController: NSObject, NSWindowDelegate {
         } else { origin = NSPoint(x: available.midX - size.width / 2, y: available.midY - size.height / 2) }
         panel.setFrame(clamp(NSRect(origin: origin, size: size)), display: true)
         panel.contentView = NSHostingView(rootView: DetailView(store: store, controller: self, task: value, isNew: task == nil))
-        if hover { panel.orderFrontRegardless() } else { panel.makeKeyAndOrderFront(nil) }
+        if hover { panel.orderFrontRegardless() } else { panel.showForEditing() }
     }
     func pinDetail() { detailPinned = true; detailLeave = nil }
     func resizeDetail(height: CGFloat) {
@@ -234,13 +244,13 @@ final class DesktopController: NSObject, NSWindowDelegate {
     }
     func windowWillMove(_ notification: Notification) { if !positioning && NSEvent.pressedMouseButtons != 0 { pinDetail(); detailMoved = true } }
     func showArchive() {
-        if let archive { archive.makeKeyAndOrderFront(nil); return }
+        if let archive { archive.showForEditing(); return }
         let panel = Self.panel(); configure(panel)
         panel.contentView = NSHostingView(rootView: ArchiveView(store: store, controller: self))
         let size = NSSize(width: 420, height: min(520, available.height - 40))
         panel.setFrame(NSRect(x: available.midX - size.width / 2, y: available.midY - size.height / 2, width: size.width, height: size.height), display: true)
         panel.escape = { [weak panel] in panel?.orderOut(nil) }
-        archive = panel; panel.makeKeyAndOrderFront(nil)
+        archive = panel; panel.showForEditing()
     }
     func export(markdown: Bool) {
         let panel = NSSavePanel(); panel.nameFieldStringValue = "SideTodo-completed.\(markdown ? "md" : "json")"
