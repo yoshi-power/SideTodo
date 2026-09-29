@@ -57,7 +57,10 @@ public sealed partial class Widget
             await Task.Delay(400);
             Assert(store.Data.Tasks[0].Done && rows.Children.Count == 1, "Completed task fades and leaves the list");
             showDone = true; RenderRows(); Assert(rows.Children.Count == 2, "Completed task remains recoverable");
-            Collapse(); await Task.Delay(50); Expand(false); await Task.Delay(320);
+            double closingWidth = Width, closingHeight = Height;
+            Collapse(); await Task.Delay(70);
+            if (SystemParameters.ClientAreaAnimation) Assert(Math.Abs(Width - closingWidth) < 1 && Math.Abs(Height - closingHeight) < 1 && card.Opacity > 0 && card.Opacity < 1, "Dismissal fades without shrinking native bounds or reflowing text");
+            Expand(false); await Task.Delay(320);
             await WaitUntil(() => Width >= 245.5 && card.Opacity > .99);
             Assert(expanded && card.Visibility == Visibility.Visible && card.Opacity > .99 && Width >= 245.5, $"Interrupted collapse reverses without hiding reopened panel (expanded={expanded}, visible={card.Visibility}, opacity={card.Opacity:F2}, width={Width:F1})");
             Collapse(); await Task.Delay(350);

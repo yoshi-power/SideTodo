@@ -161,5 +161,5 @@ public sealed class DetailEditor : Window
         var value = new Todo { Id = task?.Id ?? Guid.NewGuid(), Title = TitleInput.Text.Trim(), Notes = NotesInput.Text.Trim(), Due = TodayChoice.IsChecked == true ? DateTime.Today : DateChoice.IsChecked == true ? Calendar.SelectedDate : null, Done = task?.Done ?? false, CompletedAt = task?.CompletedAt, Created = task?.Created ?? DateTime.Now };
         if (save(value)) { IsDirty = false; Dismiss(); } else Error("저장하지 못했습니다.");
     }
-    public void Dismiss() { if (dismissing) return; dismissing = true; leave.Stop(); Look.Fade(this, 0, 120, () => { finished = true; Close(); }); }
+    public void Dismiss() { if (dismissing) return; dismissing = true; leave.Stop(); if (Content is FrameworkElement element && element.RenderTransform is ScaleTransform scale) { Look.Animate(scale, ScaleTransform.ScaleXProperty, .98, 260); Look.Animate(scale, ScaleTransform.ScaleYProperty, .98, 260); } Look.Fade(this, 0, 260, () => { finished = true; Close(); }); }
 }

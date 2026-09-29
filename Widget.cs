@@ -19,6 +19,8 @@ public sealed partial class Widget : Window
     readonly StackPanel rows = new();
     readonly Grid panel = new() { Margin = new Thickness(13, 10, 13, 10), MinWidth = 214 };
     readonly Border card, marker;
+    readonly ScaleTransform cardScale = new(1, 1);
+    readonly TranslateTransform cardSlide = new();
     readonly TextBox quick;
     readonly TextBlock placeholder;
     readonly Border composeFrame;
@@ -85,6 +87,8 @@ public sealed partial class Widget : Window
         composeFrame = new Border { Child = composer, CornerRadius = new CornerRadius(9), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Colors.Transparent), Background = new SolidColorBrush(Colors.Transparent), Padding = new Thickness(6, 0, 4, 0), Margin = new Thickness(0, 6, 0, 0) };
         Grid.SetRow(composeFrame, 2); panel.Children.Add(composeFrame);
         card = Look.Card(panel); card.Margin = new Thickness(3, 2, 2, 2); card.Opacity = 0; card.Visibility = Visibility.Hidden; card.IsHitTestVisible = false; root.Children.Add(card);
+        var cardMotion = new TransformGroup(); cardMotion.Children.Add(cardScale); cardMotion.Children.Add(cardSlide);
+        card.RenderTransform = cardMotion; card.RenderTransformOrigin = new Point(0, .12);
         marker = new Border { Width = 4, Height = 28, CornerRadius = new CornerRadius(2), Background = Look.Brush("#A0D0D0D0"), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(2, 8, 0, 0) }; root.Children.Add(marker);
         var context = new ContextMenu();
         var completed = new MenuItem { Header = "완료한 일", IsCheckable = true }; completed.Click += (_, _) => { showDone = completed.IsChecked; RenderRows(); ResizePanel(); }; context.Items.Add(completed);
@@ -171,20 +175,45 @@ public sealed partial class Widget : Window
     void Collapse()
     {
         if (editing || !expanded || closing) return;
-        hide.Stop(); settle.Stop(); expanded = false; SetTyping(false); suppressProximityUntil = DateTime.UtcNow.AddMilliseconds(650);
+        hide.Stop(); settle.Stop(); expanded = false; suppressProximityUntil = DateTime.UtcNow.AddMilliseconds(650);
         drafts[later] = quick.Text; Keyboard.ClearFocus();
         int version = ++transition; card.IsHitTestVisible = false;
-        Look.Fade(card, 0, 140); Look.Fade(marker, 1, 230);
-        AnimateSize(12, 44, 260, () => { if (transition == version && !expanded) card.Visibility = Visibility.Hidden; });
+        // Freeze native bounds while the still-readable card fades. Resizing a
+        // WPF Window to the marker used to reflow/clip every row on every frame.
+        double width = Width, height = Height;
+        BeginAnimation(WidthProperty, null); BeginAnimation(HeightProperty, null);
+        Width = width; Height = height;
+        Look.Animate(cardScale, ScaleTransform.ScaleXProperty, .98, 280);
+        Look.Animate(cardScale, ScaleTransform.ScaleYProperty, .98, 280);
+        Look.Animate(cardSlide, TranslateTransform.XProperty, -8, 280);
+        Look.Fade(marker, 1, 300);
+        Look.Fade(card, 0, 280, () =>
+        {
+            if (transition != version || expanded) return;
+            card.Visibility = Visibility.Hidden; SetTyping(false);
+            Width = targetWidth = 12; Height = targetHeight = 44;
+        });
     }
     public void Expand(bool activate)
     {
         hide.Stop();
         if (!expanded)
         {
-            ++transition; expanded = true; SetTyping(false);
+            ++transition; expanded = true;
+            bool wasHidden = card.Visibility != Visibility.Visible;
+            if (wasHidden) SetTyping(false);
             card.Visibility = Visibility.Visible; card.IsHitTestVisible = true;
-            RenderRows(); Look.Fade(marker, 0, 100); Look.Fade(card, 1, 240); ResizePanel();
+            if (wasHidden)
+            {
+                RenderRows();
+                BeginAnimation(WidthProperty, null); BeginAnimation(HeightProperty, null);
+                Width = targetWidth = PanelWidth(); Height = targetHeight = PanelHeight(Width);
+                cardScale.ScaleX = cardScale.ScaleY = .98; cardSlide.X = -8;
+            }
+            Look.Animate(cardScale, ScaleTransform.ScaleXProperty, 1, 260);
+            Look.Animate(cardScale, ScaleTransform.ScaleYProperty, 1, 260);
+            Look.Animate(cardSlide, TranslateTransform.XProperty, 0, 260);
+            Look.Fade(marker, 0, 230); Look.Fade(card, 1, 260); ResizePanel();
         }
         if (activate) { Activate(); quick.Focus(); ScheduleSettle(); }
     }

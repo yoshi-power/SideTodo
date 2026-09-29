@@ -49,6 +49,7 @@ extension View {
 // NSTextView keeps macOS selection, undo, spell checking and Korean IME behavior.
 // Return submits only after the input method finishes composing; Shift-Return adds a line.
 final class EntryTextView: NSTextView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     var submit: (() -> Void)?
     var escape: (() -> Void)?
     var tabForward: (() -> Void)?
@@ -95,13 +96,24 @@ struct Editor: NSViewRepresentable {
         view.delegate = context.coordinator; view.isRichText = false
         view.drawsBackground = false; view.textColor = .white
         view.insertionPointColor = .white; view.font = .systemFont(ofSize: fontSize)
-        view.isVerticallyResizable = true; view.isHorizontallyResizable = false
+        // SwiftUI owns the view's height. NSTextView self-resizing collapses an
+        // empty memo's actual hit region even when the SwiftUI frame is 100pt.
+        view.isEditable = true; view.isSelectable = true
+        view.isVerticallyResizable = false; view.isHorizontallyResizable = false
+        view.minSize = .zero
+        view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         view.textContainerInset = NSSize(width: 0, height: 3)
         view.textContainer?.lineFragmentPadding = 0
         view.textContainer?.widthTracksTextView = true
+        view.textContainer?.heightTracksTextView = false
+        view.textContainer?.containerSize = NSSize(width: 300, height: CGFloat.greatestFiniteMagnitude)
         view.allowsUndo = true; view.isAutomaticQuoteSubstitutionEnabled = false
         view.setAccessibilityLabel(accessibility)
+        view.identifier = NSUserInterfaceItemIdentifier(accessibility)
         return view
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: EntryTextView, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? 300, height: proposal.height ?? max(minHeight, height))
     }
     func updateNSView(_ view: EntryTextView, context: Context) {
         context.coordinator.parent = self
@@ -371,7 +383,7 @@ struct ArchiveView: View {
                 HStack {
                     Text("완료 기록").font(.system(size: 14, weight: .semibold))
                     DragHandle().frame(height: 26)
-                    Glyph(symbol: "xmark", label: "닫기") { controller.archive?.orderOut(nil) }
+                    Glyph(symbol: "xmark", label: "닫기") { controller.hideArchive() }
                 }
                 HStack {
                     Button(newest ? "최근 완료순 ↓" : "완료한 순서 ↑") { newest.toggle() }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Style.muted)

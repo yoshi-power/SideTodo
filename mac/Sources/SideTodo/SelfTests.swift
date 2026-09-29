@@ -16,7 +16,12 @@ enum SelfTests {
         store.complete(task, done: true)
         var edited = task; edited.notes = task.notes
         try check(store.saveDetails(edited) && store.state.tasks[0].done, "Hover editor cannot undo a simultaneous completion")
+        let beforeUpdate = try Data(contentsOf: url)
         let reload = try TaskStore(url: url)
+        let snapshotURL = directory.appendingPathComponent("tasks.before-preview2.json")
+        let snapshot = try Data(contentsOf: snapshotURL)
+        let afterOpen = try Data(contentsOf: url)
+        try check(snapshot == beforeUpdate && afterOpen == beforeUpdate, "Upgrade preserves primary bytes and creates immutable backup")
         try check(reload.state.tasks[0].notes == task.notes, "Unicode round trip")
         try check(reload.state.tasks[0].completedAt != nil, "Completion timestamp")
         try check(FileManager.default.fileExists(atPath: url.appendingPathExtension("bak").path), "Backup")
@@ -32,6 +37,9 @@ enum SelfTests {
         let export = try JSONDecoder().decode(TaskState.self, from: reload.exportJSON())
         try check(export.tasks.count == 3 && export.tasks.allSatisfy(\.done), "JSON archive excludes active items")
         try check(reload.exportMarkdown().contains("시각 미기록"), "Markdown archive")
+        let reopened = try TaskStore(url: url)
+        let snapshotAgain = try Data(contentsOf: snapshotURL)
+        try check(reopened.state.tasks == reload.state.tasks && snapshotAgain == beforeUpdate, "Upgrade keeps active and completed tasks and never replaces snapshot")
         let fixture = #"{"Tasks":[{"Id":"956c6d24-7908-4e78-bb30-bd0590d81a12","Title":"Windows 가져오기","Notes":"메모","Due":"2026-10-03T00:00:00","Done":true,"CompletedAt":"2026-09-29T16:14:11.1234567+09:00","Created":"2026-09-28T19:04:00.1234567+09:00"}],"Y":160}"#
         let imported = try JSONDecoder().decode(TaskState.self, from: Data(fixture.utf8))
         try check(imported.tasks[0].notes == "메모" && Dates.local(imported.tasks[0].due) != nil, "Windows schema")

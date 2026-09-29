@@ -66,6 +66,12 @@ final class TaskStore: ObservableObject {
         guard Set(state.tasks.map(\.id)).count == state.tasks.count else {
             throw CocoaError(.fileReadCorruptFile)
         }
+        // One immutable snapshot of the pre-update file, separate from the
+        // rolling .bak. Never rewrite the primary just because the app opened.
+        let snapshot = url.deletingLastPathComponent().appendingPathComponent("tasks.before-preview2.json")
+        if FileManager.default.fileExists(atPath: url.path) && !FileManager.default.fileExists(atPath: snapshot.path) {
+            try FileManager.default.copyItem(at: url, to: snapshot)
+        }
     }
     @discardableResult func commit(_ mutation: (inout TaskState) -> Void) -> Bool {
         var next = state; mutation(&next)

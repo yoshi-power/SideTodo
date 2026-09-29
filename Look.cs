@@ -28,7 +28,7 @@ public static class Look
     {
         double from = target.Opacity;
         target.SetValue(UIElement.OpacityProperty, to);
-        var a = new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(SystemParameters.ClientAreaAnimation ? ms : 1)) { FillBehavior = FillBehavior.Stop };
+        var a = new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(SystemParameters.ClientAreaAnimation ? ms : 1)) { FillBehavior = FillBehavior.Stop, EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut } };
         if (finished != null) a.Completed += (_, _) => finished();
         target.BeginAnimation(UIElement.OpacityProperty, a, HandoffBehavior.SnapshotAndReplace);
     }

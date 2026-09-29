@@ -1,8 +1,32 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+import QuartzCore
 
 final class FloatingPanel: NSPanel {
+    private var fadeTimer: Timer?
+    func fade(visible: Bool, completion: (() -> Void)? = nil) {
+        fadeTimer?.invalidate(); fadeTimer = nil
+        ignoresMouseEvents = !visible
+        if visible && !isVisible { alphaValue = 0; orderFrontRegardless() }
+        let from = alphaValue, to: CGFloat = visible ? 1 : 0
+        let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : (visible ? 0.24 : 0.30)
+        if duration == 0 {
+            alphaValue = to; if !visible { orderOut(nil) }; completion?(); return
+        }
+        let start = ProcessInfo.processInfo.systemUptime
+        let timer = Timer(timeInterval: 1 / 60.0, repeats: true) { [self] timer in
+            let progress = min(1, (ProcessInfo.processInfo.systemUptime - start) / duration)
+            let eased = progress * progress * (3 - 2 * progress)
+            alphaValue = from + (to - from) * eased
+            if progress >= 1 {
+                timer.invalidate(); fadeTimer = nil
+                if !visible { orderOut(nil) }
+                completion?()
+            }
+        }
+        fadeTimer = timer; RunLoop.main.add(timer, forMode: .common)
+    }
     var acceptsKeyboard = false
     override var canBecomeKey: Bool { acceptsKeyboard }
     override var canBecomeMain: Bool { false }
@@ -20,6 +44,7 @@ final class FloatingPanel: NSPanel {
 final class DesktopController: NSObject, NSWindowDelegate {
     let store: TaskStore
     let widget: FloatingPanel
+    let marker: FloatingPanel
     var detail: FloatingPanel?
     var archive: FloatingPanel?
     var status: NSStatusItem!
@@ -54,10 +79,17 @@ final class DesktopController: NSObject, NSWindowDelegate {
         NSPoint(x: available.minX + 3, y: available.maxY - min(160, available.height * 0.25))
     }
     init(store: TaskStore) {
-        self.store = store; widget = Self.panel()
+        self.store = store; widget = Self.panel(); marker = Self.panel()
         super.init()
         widget.escape = { [weak self] in self?.collapse(force: true) }
         configure(widget)
+        configure(marker)
+        marker.hasShadow = false
+        marker.contentView = NSHostingView(rootView:
+            Capsule().fill(Color(white: 0.10).opacity(0.85))
+                .overlay(Capsule().fill(Color(white: 0.95)).padding(3))
+                .overlay(Capsule().stroke(Color.white.opacity(0.45), lineWidth: 1))
+                .frame(width: 13, height: 42).padding(3))
         makeStatus()
         collapse(force: true)
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
@@ -121,8 +153,8 @@ final class DesktopController: NSObject, NSWindowDelegate {
         UserDefaults.standard.set(sender.representedObject as? String, forKey: "display")
         screensChanged()
     }
-    @objc func toggleFullScreen() { fullScreen.toggle(); for p in [widget, detail, archive].compactMap({ $0 }) { configure(p) }; rebuildMenu() }
-    @objc func togglePause() { paused.toggle(); if paused { collapse(force: true); widget.orderOut(nil) } else { collapse(force: true) }; rebuildMenu() }
+    @objc func toggleFullScreen() { fullScreen.toggle(); for p in [widget, marker, detail, archive].compactMap({ $0 }) { configure(p) }; rebuildMenu() }
+    @objc func togglePause() { paused.toggle(); collapse(force: true); rebuildMenu() }
     @objc func openData() {
         try? FileManager.default.createDirectory(at: store.url.deletingLastPathComponent(), withIntermediateDirectories: true)
         NSWorkspace.shared.open(store.url.deletingLastPathComponent())
@@ -166,28 +198,29 @@ final class DesktopController: NSObject, NSWindowDelegate {
         guard !expanded else { return }
         expanded = true; leaveTime = nil
         widget.acceptsKeyboard = false
-        widget.contentView = NSHostingView(rootView: WidgetView(store: store, controller: self))
-        widget.hasShadow = true; widget.alphaValue = 1
-        positionWidget(animated: true)
-        widget.orderFrontRegardless() // Hover never activates the app or takes keyboard focus.
+        if widget.contentView == nil { widget.contentView = NSHostingView(rootView: WidgetView(store: store, controller: self)) }
+        positionWidget(animated: false)
+        marker.fade(visible: false); widget.fade(visible: true)
     }
     func collapse(force: Bool = false) {
         if !force && (detailPinned || (typing && widget.isKeyWindow)) { return }
         expanded = false; typing = false; leaveTime = nil; hoverSuppressed = true
         if widget.isKeyWindow { widget.resignKey() }
         widget.acceptsKeyboard = false
-        widget.contentView = NSHostingView(rootView: Capsule().fill(Color.white.opacity(0.35)).frame(width: 4, height: 28).padding(2))
-        widget.hasShadow = false
-        positionWidget(animated: true)
-        if !paused { widget.orderFrontRegardless() }
+        // Keep the editor tree and frame intact until fully invisible. Shrinking
+        // or replacing its content during dismissal causes text/layout snapping.
+        widget.fade(visible: false)
+        marker.setFrame(clamp(NSRect(x: anchor.x, y: anchor.y - 48, width: 19, height: 48)), display: true)
+        marker.fade(visible: !paused)
     }
     func resizeWidget(width: CGFloat, height: CGFloat) {
-        guard expanded, width.isFinite, height.isFinite, height > 0 else { return }
+        guard width.isFinite, height.isFinite, height > 0 else { return }
         widgetSize = NSSize(width: width, height: min(height, available.height - 20))
-        positionWidget(animated: true)
+        positionWidget(animated: expanded && widget.alphaValue > 0.99)
     }
     func positionWidget(animated: Bool) {
-        var frame = NSRect(origin: NSPoint(x: anchor.x, y: anchor.y - (expanded ? widgetSize.height : 32)), size: expanded ? widgetSize : NSSize(width: 8, height: 32))
+        marker.setFrame(clamp(NSRect(x: anchor.x, y: anchor.y - 48, width: 19, height: 48)), display: true)
+        var frame = NSRect(origin: NSPoint(x: anchor.x, y: anchor.y - widgetSize.height), size: widgetSize)
         frame = clamp(frame)
         setFrame(widget, frame, animated: animated)
     }
@@ -204,7 +237,8 @@ final class DesktopController: NSObject, NSWindowDelegate {
         positioning = true
         if animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.2; panel.animator().setFrame(frame, display: true)
+                context.duration = 0.26; context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                panel.animator().setFrame(frame, display: true)
             }
         } else { panel.setFrame(frame, display: true) }
         positioning = false
@@ -228,7 +262,8 @@ final class DesktopController: NSObject, NSWindowDelegate {
         } else { origin = NSPoint(x: available.midX - size.width / 2, y: available.midY - size.height / 2) }
         panel.setFrame(clamp(NSRect(origin: origin, size: size)), display: true)
         panel.contentView = NSHostingView(rootView: DetailView(store: store, controller: self, task: value, isNew: task == nil))
-        if hover { panel.orderFrontRegardless() } else { panel.showForEditing() }
+        panel.fade(visible: true)
+        if !hover { panel.showForEditing() }
     }
     func pinDetail() { detailPinned = true; detailLeave = nil }
     func resizeDetail(height: CGFloat) {
@@ -239,19 +274,21 @@ final class DesktopController: NSObject, NSWindowDelegate {
     }
     func closeDetail(flush: Bool = true) {
         if flush, let flushDetail, !flushDetail() { pinDetail(); return }
-        detail?.orderOut(nil); detail?.contentView = nil; detail = nil; detailID = nil
+        if let panel = detail { panel.fade(visible: false) { panel.contentView = nil } }
+        detail = nil; detailID = nil
         flushDetail = nil; detailPinned = false; detailLeave = nil; leaveTime = Date()
     }
     func windowWillMove(_ notification: Notification) { if !positioning && NSEvent.pressedMouseButtons != 0 { pinDetail(); detailMoved = true } }
     func showArchive() {
-        if let archive { archive.showForEditing(); return }
+        if let archive { archive.fade(visible: true); archive.showForEditing(); return }
         let panel = Self.panel(); configure(panel)
         panel.contentView = NSHostingView(rootView: ArchiveView(store: store, controller: self))
         let size = NSSize(width: 420, height: min(520, available.height - 40))
         panel.setFrame(NSRect(x: available.midX - size.width / 2, y: available.midY - size.height / 2, width: size.width, height: size.height), display: true)
-        panel.escape = { [weak panel] in panel?.orderOut(nil) }
-        archive = panel; panel.showForEditing()
+        panel.escape = { [weak self] in self?.hideArchive() }
+        archive = panel; panel.fade(visible: true); panel.showForEditing()
     }
+    func hideArchive() { archive?.fade(visible: false) }
     func export(markdown: Bool) {
         let panel = NSSavePanel(); panel.nameFieldStringValue = "SideTodo-completed.\(markdown ? "md" : "json")"
         panel.allowedContentTypes = [markdown ? .plainText : .json]
@@ -301,7 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if testing { smokeDirectory = directory }
             let store = try TaskStore(url: directory.appendingPathComponent("tasks.json"))
             controller = DesktopController(store: store)
-            if testing { runUISmoke() }
+            if testing { runEditorSmoke() }
         } catch {
             let alert = NSAlert(); alert.messageText = "일정 파일을 열지 못했습니다."
             alert.informativeText = "기존 파일 보호를 위해 앱을 종료합니다. ~/Library/Application Support/SideTodo/tasks.json과 .bak 파일을 확인해 주세요.\n\(error.localizedDescription)"
@@ -315,7 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func closeFocused() {
         guard let controller else { return }
         if controller.detail?.isKeyWindow == true { controller.closeDetail() }
-        else if controller.archive?.isKeyWindow == true { controller.archive?.orderOut(nil) }
+        else if controller.archive?.isKeyWindow == true { controller.hideArchive() }
         else { controller.collapse(force: true) }
     }
     func applicationWillTerminate(_ notification: Notification) {
