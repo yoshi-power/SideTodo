@@ -57,3 +57,9 @@ jobs:
           ditto -x -k SideTodo-*-universal.zip extracted
           codesign --verify --deep --strict extracted/SideTodo.app
           extracted/SideTodo.app/Contents/MacOS/SideTodo --self-test
+      - name: Verify cold startup and actual input on Intel
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          subprocess.run(['package/extracted/SideTodo.app/Contents/MacOS/SideTodo', '--ui-smoke'], check=True, timeout=90)
+          PY

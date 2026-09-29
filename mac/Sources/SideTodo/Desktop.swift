@@ -172,10 +172,9 @@ final class DesktopController: NSObject, NSWindowDelegate {
         for panel in [detail, archive].compactMap({ $0 }) { panel.setFrame(clamp(panel.frame), display: true) }
         rebuildMenu()
     }
-    func tick() {
+    func tick(mouse: NSPoint = NSEvent.mouseLocation) {
         guard !NSScreen.screens.isEmpty else { return }
         if available != lastScreenFrame { screensChanged() }
-        let mouse = NSEvent.mouseLocation
         let zone = NSRect(x: anchor.x - 3, y: anchor.y - 54, width: 34, height: 108)
         if !zone.contains(mouse) && !expanded { hoverSuppressed = false }
         if !paused && !expanded && !hoverSuppressed && zone.contains(mouse) { expand() }

@@ -29,13 +29,23 @@ extension AppDelegate {
                                            windowNumber: panel.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0)!
                 NSApp.postEvent(up, atStart: true)
                 panel.sendEvent(down)
-                check(panel.firstResponder === field, "Mouse click makes memo the first responder")
+                check(panel.firstResponder === field, "Mouse click makes editor the first responder")
             }
             guard let controller else { exit(1) }
             controller.timer?.invalidate()
             var task = Todo(); task.title = "빈 메모 입력 검사"; task.due = Dates.day(Date())
             check(controller.store.put(task), "Create isolated existing task with empty memo")
-            controller.expand(); controller.openDetail(task, hover: true)
+            await pause(400)
+            check(controller.marker.isVisible && controller.marker.alphaValue > 0.99, "Fresh launch displays the edge marker")
+            controller.tick(mouse: NSPoint(x: controller.available.midX, y: controller.available.midY))
+            controller.tick(mouse: NSPoint(x: controller.marker.frame.midX, y: controller.marker.frame.midY))
+            await pause(400)
+            check(controller.expanded && controller.widget.isVisible, "Edge hover opens the widget from cold startup")
+            check(controller.widget.contentView.map { !editors($0).isEmpty } ?? false, "Cold-start widget contains real task input, not an empty native content view")
+            let firstInput = field(controller.widget, "할 일 추가")
+            check(firstInput.bounds.width > 100 && firstInput.bounds.height >= 20, "Task input is laid out and drawable on first hover")
+            self.capture(controller.widget, name: "cold-start-widget")
+            controller.openDetail(task, hover: true)
             await pause(400)
             check(!controller.detailPinned && controller.detail?.isKeyWindow == false && !controller.widget.isKeyWindow, "Hover does not take keyboard focus")
             guard let panel = controller.detail else { exit(1) }
@@ -75,6 +85,15 @@ extension AppDelegate {
             check(controller.store.archived(newest: true).count == 1, "Completion archive retains edited task")
             controller.store.complete(controller.store.state.tasks[0], done: false); controller.hideArchive()
             controller.expand(); await pause(350)
+            let quick = field(controller.widget, "할 일 추가")
+            click(quick, in: controller.widget)
+            quick.insertText("위젯에서 추가한 일정", replacementRange: NSRange(location: 0, length: (quick.string as NSString).length))
+            await pause(150)
+            let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                        windowNumber: controller.widget.windowNumber, context: nil, characters: "\r",
+                                        charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+            controller.widget.sendEvent(enter); await pause(500)
+            check(controller.store.state.tasks.contains { $0.title == "위젯에서 추가한 일정" }, "Visible widget accepts input and Return saves an actual task")
             let bounds = controller.widget.frame
             controller.collapse(force: true); await pause(90)
             if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
@@ -85,6 +104,8 @@ extension AppDelegate {
             controller.collapse(force: true); await pause(400)
             check(!controller.widget.isVisible && controller.marker.isVisible && controller.marker.frame.width == 19, "Idle marker is visible and hidden panel no longer intercepts clicks")
             self.capture(controller.marker, name: "marker")
+            controller.openFromMenu(); await pause(400)
+            check(!editors(controller.widget.contentView!).isEmpty && controller.widget.alphaValue > 0.99, "Menu reopens actual widget contents after full dismissal")
             NSApp.terminate(nil)
         }
     }
